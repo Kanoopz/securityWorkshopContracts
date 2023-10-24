@@ -1,0 +1,2 @@
+# securityWorkshopContracts
+securityWorkshop for ethMexico sideEvent
